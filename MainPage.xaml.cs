@@ -1,6 +1,6 @@
 using Hl7.Fhir.Model;
 using Hl7.Fhir.Serialization;
-
+using FHIRExplorer.Services;
 using FhirResource = Hl7.Fhir.Model.Resource;
 
 namespace FHIRExplorer;
@@ -10,6 +10,7 @@ public partial class MainPage : ContentPage
     private CapabilityStatement? capabilityStatement;
     private string? selectedResourceType;
 
+    private readonly FhirService fhirService;
     private class SearchResultItem
     {
         public string ResourceType { get; set; } = string.Empty;
@@ -17,9 +18,11 @@ public partial class MainPage : ContentPage
         public string DisplayText => $"{ResourceType}/{Id}";
     }
 
-    public MainPage()
+    public MainPage(FhirService fhirService)
     {
         InitializeComponent();
+
+        this.fhirService = fhirService;
     }
 
     private async void OnReadCapabilityClicked(object? sender, EventArgs e)
@@ -36,22 +39,9 @@ public partial class MainPage : ContentPage
                 return;
             }
 
-            var requestUrl = $"{baseUrl.TrimEnd('/')}/metadata";
-
-            using var httpClient = new HttpClient();
-            httpClient.DefaultRequestHeaders.Accept.ParseAdd("application/fhir+json");
-
-            var response = await httpClient.GetAsync(requestUrl);
-            var content = await response.Content.ReadAsStringAsync();
-
-            if (!response.IsSuccessStatusCode)
-            {
-                StatusLabel.Text = $"HTTP {(int)response.StatusCode} {response.StatusCode}";
-                return;
-            }
-
             capabilityStatement =
-                FhirJsonDeserializer.DEFAULT.Deserialize<CapabilityStatement>(content);
+               await fhirService
+                   .GetCapabilityStatementAsync(baseUrl);
 
             var resourceTypes = capabilityStatement.Rest
                 .SelectMany(rest => rest.Resource)
@@ -64,7 +54,7 @@ public partial class MainPage : ContentPage
             ResourceCollectionView.ItemsSource = resourceTypes;
 
             StatusLabel.Text =
-                $"HTTP {(int)response.StatusCode} {response.StatusCode} — " +
+                
                 $"loaded {resourceTypes.Count} supported resource types.";
         }
         catch (Exception ex)
@@ -157,27 +147,14 @@ public partial class MainPage : ContentPage
         {
             SearchStatusLabel.Text = "Searching...";
 
-            var encodedValue = Uri.EscapeDataString(searchValue);
 
-            var requestUrl =
-                $"{baseUrl.TrimEnd('/')}/{selectedResourceType}" +
-                $"?{selectedParameter}={encodedValue}";
-
-            using var httpClient = new HttpClient();
-            httpClient.DefaultRequestHeaders.Accept.ParseAdd("application/fhir+json");
-
-            var response = await httpClient.GetAsync(requestUrl);
-            var content = await response.Content.ReadAsStringAsync();
-
-            if (!response.IsSuccessStatusCode)
-            {
-                SearchStatusLabel.Text =
-                    $"HTTP {(int)response.StatusCode} {response.StatusCode}";
-                return;
-            }
 
             var bundle =
-                FhirJsonDeserializer.DEFAULT.Deserialize<Bundle>(content);
+               await fhirService.SearchAsync(
+                   baseUrl,
+                   selectedResourceType,
+                   selectedParameter,
+                   searchValue);
 
             var results = bundle.Entry
                 .Select(entry => entry.Resource)
@@ -228,27 +205,11 @@ public partial class MainPage : ContentPage
             ResourceDetailLabel.Text =
                 $"Reading {selectedResult.DisplayText}...";
 
-            var requestUrl =
-                $"{baseUrl.TrimEnd('/')}/" +
-                $"{selectedResult.ResourceType}/" +
-                $"{selectedResult.Id}";
-
-            using var httpClient = new HttpClient();
-            httpClient.DefaultRequestHeaders.Accept.ParseAdd("application/fhir+json");
-
-            var response = await httpClient.GetAsync(requestUrl);
-            var content = await response.Content.ReadAsStringAsync();
-
-            if (!response.IsSuccessStatusCode)
-            {
-                ResourceDetailLabel.Text =
-                    $"HTTP {(int)response.StatusCode} {response.StatusCode}";
-                ResourceDetailEditor.Text = content;
-                return;
-            }
-
-            FhirResource resource =
-                FhirJsonDeserializer.DEFAULT.DeserializeResource(content);
+            var resource =
+               await fhirService.ReadAsync(
+                   baseUrl,
+                   selectedResult.ResourceType,
+                   selectedResult.Id);
 
             ResourceDetailLabel.Text =
                 $"{resource.GetType().Name}/{resource.Id}";
