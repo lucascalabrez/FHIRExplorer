@@ -170,6 +170,7 @@ public partial class MainPage : ContentPage
             var bundle =
                 lastSearchResponse.Bundle;
 
+            ViewSearchsetJsonButton.IsEnabled = true;
             var results = bundle.Entry
                 .Select(entry => entry.Resource)
                 .OfType<FhirResource>()
