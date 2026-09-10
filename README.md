@@ -19,10 +19,13 @@ This snapshot uses the current SDK 6 API:
 - `FhirJsonDeserializer.DEFAULT.Deserialize<T>(json)`
 - `FhirJsonDeserializer.DEFAULT.DeserializeResource(json)`
 
+## Dependency Injection / FHIR Services
+
+Refactored to extract HTTP/FHIR work from MainPage into a dedicated FhirService.
+
 ## Important
 
 The shared files in this archive are ready to replace the corresponding files in the existing Visual Studio MAUI project.
 
 Keep the template-generated `Platforms` and `Resources` files already present in the existing project. An Android manifest snippet is included because Android needs the INTERNET permission for HAPI access.
 
-The next planned refactoring is to extract HTTP/FHIR work from `MainPage` into a dedicated `FhirService`.

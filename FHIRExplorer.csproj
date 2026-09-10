@@ -29,4 +29,13 @@
 
     <PackageReference Include="Hl7.Fhir.R4" Version="6.4.0" />
   </ItemGroup>
+
+  <ItemGroup>
+    <MauiXaml Update="Pages\ResourceDetailPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+    <MauiXaml Update="Pages\SearchsetJsonPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+  </ItemGroup>
 </Project>

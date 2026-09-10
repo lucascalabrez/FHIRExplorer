@@ -1,11 +1,11 @@
 ﻿using Hl7.Fhir.Model;
 using Hl7.Fhir.Serialization;
-
+using FHIRExplorer.Models;
 using FhirResource = Hl7.Fhir.Model.Resource;
 
 namespace FHIRExplorer.Services;
 
-public sealed class FhirService
+public sealed class FhirService : IFhirService
 {
     private readonly HttpClient httpClient;
 
@@ -30,7 +30,7 @@ public sealed class FhirService
             .Deserialize<CapabilityStatement>(content);
     }
 
-    public async Task<Bundle> SearchAsync(
+    public async Task<FhirSearchResponse> SearchAsync(
         string baseUrl,
         string resourceType,
         string searchParameter,
@@ -47,8 +47,13 @@ public sealed class FhirService
         var content =
             await GetJsonAsync(requestUrl);
 
-        return FhirJsonDeserializer.DEFAULT
-            .Deserialize<Bundle>(content);
+        var bundle =
+            FhirJsonDeserializer.DEFAULT
+                .Deserialize<Bundle>(content);
+
+        return new FhirSearchResponse(
+            bundle,
+            content);
     }
 
     public async Task<FhirResource> ReadAsync(
