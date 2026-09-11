@@ -1,6 +1,5 @@
 using FHIRExplorer.Services;
-using FHIRExplorer.Pages;
-using FHIRExplorer.Services;
+
 namespace FHIRExplorer;
 
 public static class MauiProgram
@@ -12,15 +11,11 @@ public static class MauiProgram
         builder
             .UseMauiApp<App>();
 
-        builder.Services.AddSingleton<IFhirService, FhirService>();
+        builder.Services.AddSingleton<FhirService>();
 
         builder.Services.AddTransient<MainPage>();
 
         builder.Services.AddSingleton<AppShell>();
-
-        builder.Services.AddTransient<ResourceDetailPage>();
-
-        builder.Services.AddTransient<SearchsetJsonPage>();
 
         return builder.Build();
     }

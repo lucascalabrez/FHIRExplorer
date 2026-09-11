@@ -2,8 +2,7 @@ using Hl7.Fhir.Model;
 using Hl7.Fhir.Serialization;
 using FHIRExplorer.Services;
 using FhirResource = Hl7.Fhir.Model.Resource;
-using FHIRExplorer.Models;
-using FHIRExplorer.Pages;
+
 namespace FHIRExplorer;
 
 public partial class MainPage : ContentPage
@@ -11,8 +10,7 @@ public partial class MainPage : ContentPage
     private CapabilityStatement? capabilityStatement;
     private string? selectedResourceType;
 
-    private FhirSearchResponse? lastSearchResponse;
-
+    private readonly FhirService fhirService;
     private class SearchResultItem
     {
         public string ResourceType { get; set; } = string.Empty;
@@ -20,20 +18,11 @@ public partial class MainPage : ContentPage
         public string DisplayText => $"{ResourceType}/{Id}";
     }
 
-    private readonly IFhirService fhirService;
-    private readonly ResourceDetailPage resourceDetailPage;
-    private readonly SearchsetJsonPage searchsetJsonPage;
-
-    public MainPage(
-        IFhirService fhirService,
-        ResourceDetailPage resourceDetailPage,
-        SearchsetJsonPage searchsetJsonPage)
+    public MainPage(FhirService fhirService)
     {
         InitializeComponent();
 
         this.fhirService = fhirService;
-        this.resourceDetailPage = resourceDetailPage;
-        this.searchsetJsonPage = searchsetJsonPage;
     }
 
     private async void OnReadCapabilityClicked(object? sender, EventArgs e)
@@ -65,7 +54,7 @@ public partial class MainPage : ContentPage
             ResourceCollectionView.ItemsSource = resourceTypes;
 
             StatusLabel.Text =
-
+                
                 $"loaded {resourceTypes.Count} supported resource types.";
         }
         catch (Exception ex)
@@ -160,15 +149,12 @@ public partial class MainPage : ContentPage
 
 
 
-            lastSearchResponse =
-              await fhirService.SearchAsync(
-                  baseUrl,
-                  selectedResourceType,
-                  selectedParameter,
-                  searchValue);
-
             var bundle =
-                lastSearchResponse.Bundle;
+               await fhirService.SearchAsync(
+                   baseUrl,
+                   selectedResourceType,
+                   selectedParameter,
+                   searchValue);
 
             ViewSearchsetJsonButton.IsEnabled = true;
             var results = bundle.Entry
@@ -207,32 +193,57 @@ public partial class MainPage : ContentPage
             return;
         }
 
-        var baseUrl =
-            ServerUrlEntry.Text?.Trim();
+        var baseUrl = ServerUrlEntry.Text?.Trim();
 
         if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            ResourceDetailLabel.Text = "FHIR server URL is missing.";
             return;
+        }
 
-        await resourceDetailPage.LoadResourceAsync(
-            baseUrl,
-            selectedResult.ResourceType,
-            selectedResult.Id);
+        try
+        {
+            ResourceDetailLabel.Text =
+                $"Reading {selectedResult.DisplayText}...";
 
-        await Navigation.PushAsync(
-            resourceDetailPage);
-    }
+            var resource =
+               await fhirService.ReadAsync(
+                   baseUrl,
+                   selectedResult.ResourceType,
+                   selectedResult.Id);
 
-    private async void OnViewSearchsetJsonClicked(
-    object? sender,
-    EventArgs e)
-    {
-        if (lastSearchResponse is null)
-            return;
+            ResourceDetailLabel.Text =
+                $"{resource.GetType().Name}/{resource.Id}";
 
-        searchsetJsonPage.LoadJson(
-            lastSearchResponse.RawJson);
+            if (resource is Patient patient)
+            {
+                var name = patient.Name.FirstOrDefault();
 
-        await Shell.Current.Navigation.PushAsync(
-            searchsetJsonPage);
+                var givenNames =
+                    name is null
+                        ? string.Empty
+                        : string.Join(" ", name.Given);
+
+                var familyName = name?.Family ?? string.Empty;
+                var fullName = $"{givenNames} {familyName}".Trim();
+
+                ResourceDetailEditor.Text =
+                    $"ID: {patient.Id}\n" +
+                    $"Name: {(string.IsNullOrWhiteSpace(fullName) ? "unknown" : fullName)}\n" +
+                    $"Birth date: {patient.BirthDate ?? "unknown"}\n" +
+                    $"Active: {patient.Active?.ToString() ?? "unknown"}";
+            }
+            else
+            {
+                ResourceDetailEditor.Text =
+                    $"FHIR resource type: {resource.GetType().Name}\n" +
+                    $"ID: {resource.Id}";
+            }
+        }
+        catch (Exception ex)
+        {
+            ResourceDetailLabel.Text = "Read failed.";
+            ResourceDetailEditor.Text = ex.Message;
+        }
     }
 }

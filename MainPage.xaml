@@ -103,13 +103,6 @@
                 x:Name="SearchStatusLabel"
                 Text="No search performed yet." />
 
-            <Button
-                x:Name="ViewSearchsetJsonButton"
-                Text="View searchset JSON"
-                IsEnabled="False"
-                Clicked="OnViewSearchsetJsonClicked" />
-
-
             <CollectionView
                 x:Name="SearchResultCollectionView"
                 HeightRequest="250"
