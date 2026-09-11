@@ -1,0 +1,2 @@
+FHIRExplorer snapshot resources.
+No font files are included; the app uses platform-default fonts.

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="FHIRExplorer.Pages.SearchsetJsonPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="Searchset JSON">
+
+    <Grid
+        Padding="20"
+        RowDefinitions="Auto,Auto,Auto,*"
+        RowSpacing="12">
+
+        <Label
+            Text="FHIR searchset"
+            FontSize="24"
+            FontAttributes="Bold" />
+
+        <Label
+            Grid.Row="1"
+            Text="Request"
+            FontAttributes="Bold" />
+
+        <Grid
+            Grid.Row="2"
+            ColumnDefinitions="*,Auto"
+            ColumnSpacing="10">
+
+            <Entry
+                x:Name="RequestUrlEntry"
+                Grid.Column="0"
+                IsReadOnly="True" />
+
+            <Button
+                Grid.Column="1"
+                Text="Copy"
+                Clicked="OnCopyRequestClicked" />
+
+        </Grid>
+
+        <Editor
+            x:Name="JsonEditor"
+            Grid.Row="3"
+            IsReadOnly="True" />
+
+    </Grid>
+
+</ContentPage>

@@ -1,54 +1,50 @@
-﻿using Hl7.Fhir.Model;
+using FHIRExplorer.Models;
 using Hl7.Fhir.Serialization;
-
+using Bundle = Hl7.Fhir.Model.Bundle;
+using CapabilityStatement = Hl7.Fhir.Model.CapabilityStatement;
 using FhirResource = Hl7.Fhir.Model.Resource;
 
 namespace FHIRExplorer.Services;
 
-public sealed class FhirService
+public sealed class FhirService : IFhirService
 {
     private readonly HttpClient httpClient;
 
     public FhirService()
     {
         httpClient = new HttpClient();
-
-        httpClient.DefaultRequestHeaders.Accept
-            .ParseAdd("application/fhir+json");
+        httpClient.DefaultRequestHeaders.Accept.ParseAdd("application/fhir+json");
     }
 
-    public async Task<CapabilityStatement>
-        GetCapabilityStatementAsync(string baseUrl)
+    public async Task<CapabilityStatement> GetCapabilityStatementAsync(string baseUrl)
     {
-        var requestUrl =
-            $"{NormalizeBaseUrl(baseUrl)}/metadata";
-
-        var content =
-            await GetJsonAsync(requestUrl);
+        var requestUrl = $"{NormalizeBaseUrl(baseUrl)}/metadata";
+        var content = await GetJsonAsync(requestUrl);
 
         return FhirJsonDeserializer.DEFAULT
             .Deserialize<CapabilityStatement>(content);
     }
 
-    public async Task<Bundle> SearchAsync(
+    public async Task<FhirSearchResponse> SearchAsync(
         string baseUrl,
         string resourceType,
         string searchParameter,
         string searchValue)
     {
-        var encodedValue =
-            Uri.EscapeDataString(searchValue);
+        var encodedValue = Uri.EscapeDataString(searchValue);
 
         var requestUrl =
-            $"{NormalizeBaseUrl(baseUrl)}/" +
-            $"{resourceType}" +
-            $"?{searchParameter}={encodedValue}";
+            $"{NormalizeBaseUrl(baseUrl)}/{resourceType}?{searchParameter}={encodedValue}";
 
-        var content =
-            await GetJsonAsync(requestUrl);
+        var content = await GetJsonAsync(requestUrl);
 
-        return FhirJsonDeserializer.DEFAULT
+        var bundle = FhirJsonDeserializer.DEFAULT
             .Deserialize<Bundle>(content);
+
+        return new FhirSearchResponse(
+            bundle,
+            content,
+            requestUrl);
     }
 
     public async Task<FhirResource> ReadAsync(
@@ -57,32 +53,23 @@ public sealed class FhirService
         string id)
     {
         var requestUrl =
-            $"{NormalizeBaseUrl(baseUrl)}/" +
-            $"{resourceType}/" +
-            $"{id}";
+            $"{NormalizeBaseUrl(baseUrl)}/{resourceType}/{id}";
 
-        var content =
-            await GetJsonAsync(requestUrl);
+        var content = await GetJsonAsync(requestUrl);
 
         return FhirJsonDeserializer.DEFAULT
             .DeserializeResource(content);
     }
 
-    private async Task<string> GetJsonAsync(
-        string requestUrl)
+    private async Task<string> GetJsonAsync(string requestUrl)
     {
-        var response =
-            await httpClient.GetAsync(requestUrl);
-
-        var content =
-            await response.Content.ReadAsStringAsync();
+        var response = await httpClient.GetAsync(requestUrl);
+        var content = await response.Content.ReadAsStringAsync();
 
         if (!response.IsSuccessStatusCode)
         {
             throw new HttpRequestException(
-                $"FHIR server returned HTTP " +
-                $"{(int)response.StatusCode} " +
-                $"{response.StatusCode}.",
+                $"FHIR server returned HTTP {(int)response.StatusCode} {response.StatusCode}.",
                 null,
                 response.StatusCode);
         }
@@ -90,8 +77,7 @@ public sealed class FhirService
         return content;
     }
 
-    private static string NormalizeBaseUrl(
-        string baseUrl)
+    private static string NormalizeBaseUrl(string baseUrl)
     {
         if (string.IsNullOrWhiteSpace(baseUrl))
         {
@@ -100,8 +86,6 @@ public sealed class FhirService
                 nameof(baseUrl));
         }
 
-        return baseUrl
-            .Trim()
-            .TrimEnd('/');
+        return baseUrl.Trim().TrimEnd('/');
     }
 }

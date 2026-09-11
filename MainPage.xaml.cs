@@ -1,185 +1,189 @@
-using Hl7.Fhir.Model;
-using Hl7.Fhir.Serialization;
+using FHIRExplorer.Models;
+using FHIRExplorer.Pages;
 using FHIRExplorer.Services;
-using FhirResource = Hl7.Fhir.Model.Resource;
+using CapabilityStatement = Hl7.Fhir.Model.CapabilityStatement;
 
 namespace FHIRExplorer;
 
 public partial class MainPage : ContentPage
 {
+    private readonly IFhirService fhirService;
+    private readonly ResourceDetailPage resourceDetailPage;
+    private readonly SearchsetJsonPage searchsetJsonPage;
+
     private CapabilityStatement? capabilityStatement;
     private string? selectedResourceType;
+    private FhirSearchResponse? lastSearchResponse;
 
-    private readonly FhirService fhirService;
-    private class SearchResultItem
-    {
-        public string ResourceType { get; set; } = string.Empty;
-        public string Id { get; set; } = string.Empty;
-        public string DisplayText => $"{ResourceType}/{Id}";
-    }
-
-    public MainPage(FhirService fhirService)
+    public MainPage(
+        IFhirService fhirService,
+        ResourceDetailPage resourceDetailPage,
+        SearchsetJsonPage searchsetJsonPage)
     {
         InitializeComponent();
 
         this.fhirService = fhirService;
+        this.resourceDetailPage = resourceDetailPage;
+        this.searchsetJsonPage = searchsetJsonPage;
     }
 
-    private async void OnReadCapabilityClicked(object? sender, EventArgs e)
+    private async void OnLoadCapabilityClicked(
+        object? sender,
+        EventArgs e)
     {
+        var baseUrl = ServerUrlEntry.Text?.Trim();
+
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            CapabilityStatusLabel.Text = "Enter a FHIR server base URL.";
+            return;
+        }
+
         try
         {
-            StatusLabel.Text = "Contacting FHIR server...";
-
-            var baseUrl = ServerUrlEntry.Text?.Trim();
-
-            if (string.IsNullOrWhiteSpace(baseUrl))
-            {
-                StatusLabel.Text = "Please enter a FHIR server URL.";
-                return;
-            }
+            CapabilityStatusLabel.Text = "Loading CapabilityStatement...";
 
             capabilityStatement =
-               await fhirService
-                   .GetCapabilityStatementAsync(baseUrl);
+                await fhirService.GetCapabilityStatementAsync(baseUrl);
 
             var resourceTypes = capabilityStatement.Rest
                 .SelectMany(rest => rest.Resource)
-                .Select(resource => resource.Type?.ToString())
-                .OfType<string>()
+                .Select(resource => resource.Type)
+                .Where(type => type is not null)
+                .Select(type => type!)
                 .Distinct()
                 .OrderBy(type => type)
                 .ToList();
 
             ResourceCollectionView.ItemsSource = resourceTypes;
 
-            StatusLabel.Text =
-                
-                $"loaded {resourceTypes.Count} supported resource types.";
+            CapabilityStatusLabel.Text =
+                $"Loaded {resourceTypes.Count} resource types.";
         }
         catch (Exception ex)
         {
-            StatusLabel.Text = $"Request failed: {ex.Message}";
+            CapabilityStatusLabel.Text = $"Load failed: {ex.Message}";
         }
     }
 
-    private void OnResourceSelected(object? sender, SelectionChangedEventArgs e)
+    private void OnResourceSelected(
+        object? sender,
+        SelectionChangedEventArgs e)
     {
-        if (capabilityStatement is null)
+        selectedResourceType =
+            e.CurrentSelection.FirstOrDefault() as string;
+
+        ResetSearchState();
+
+        if (string.IsNullOrWhiteSpace(selectedResourceType) ||
+            capabilityStatement is null)
+        {
+            SelectedResourceLabel.Text = "Selected resource: none";
+            InteractionsLabel.Text = "—";
+            SearchParameterPicker.ItemsSource = null;
+            SearchButton.IsEnabled = false;
             return;
+        }
 
-        if (e.CurrentSelection.FirstOrDefault() is not string selectedResource)
-            return;
+        SelectedResourceLabel.Text =
+            $"Selected resource: {selectedResourceType}";
 
-        selectedResourceType = selectedResource;
-        SelectedResourceLabel.Text = selectedResource;
-
-        var resourceCapability = capabilityStatement.Rest
+        var resourceDefinition = capabilityStatement.Rest
             .SelectMany(rest => rest.Resource)
             .FirstOrDefault(resource =>
-                resource.Type?.ToString() == selectedResource);
+                string.Equals(
+                    resource.Type,
+                    selectedResourceType,
+                    StringComparison.Ordinal));
 
-        if (resourceCapability is null)
+        if (resourceDefinition is null)
+        {
+            InteractionsLabel.Text = "No capability details found.";
+            SearchParameterPicker.ItemsSource = null;
+            SearchButton.IsEnabled = false;
             return;
+        }
 
-        var interactions = resourceCapability.Interaction
+        var interactions = resourceDefinition.Interaction
             .Select(interaction => interaction.Code?.ToString())
-            .OfType<string>()
+            .Where(code => !string.IsNullOrWhiteSpace(code))
             .ToList();
 
-        InteractionCollectionView.ItemsSource = interactions;
+        InteractionsLabel.Text = interactions.Count == 0
+            ? "None advertised."
+            : string.Join(", ", interactions);
 
-        var searchParameters = resourceCapability.SearchParam
-            .Select(parameter => $"{parameter.Name} — {parameter.Type}")
-            .OrderBy(parameter => parameter)
-            .ToList();
-
-        SearchParameterCollectionView.ItemsSource = searchParameters;
-
-        var searchParameterNames = resourceCapability.SearchParam
+        var searchParameters = resourceDefinition.SearchParam
             .Select(parameter => parameter.Name)
-            .OfType<string>()
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Select(name => name!)
+            .Distinct()
             .OrderBy(name => name)
             .ToList();
 
-        SearchParameterPicker.ItemsSource = searchParameterNames;
+        SearchParameterPicker.ItemsSource = searchParameters;
         SearchParameterPicker.SelectedIndex = -1;
 
-        SearchValueEntry.Text = string.Empty;
-        SearchResultCollectionView.ItemsSource = null;
-        SearchStatusLabel.Text = "Ready to search.";
-
-        ResourceDetailLabel.Text = "Select a search result to read it.";
-        ResourceDetailEditor.Text = string.Empty;
+        SearchButton.IsEnabled = searchParameters.Count > 0;
+        SearchStatusLabel.Text = searchParameters.Count > 0
+            ? "Choose a search parameter and enter a value."
+            : "This resource advertises no search parameters.";
     }
 
-    private async void OnSearchClicked(object? sender, EventArgs e)
+    private async void OnSearchClicked(
+        object? sender,
+        EventArgs e)
     {
-        if (string.IsNullOrWhiteSpace(selectedResourceType))
-        {
-            SearchStatusLabel.Text = "Select a resource first.";
-            return;
-        }
-
-        if (SearchParameterPicker.SelectedItem is not string selectedParameter)
-        {
-            SearchStatusLabel.Text = "Choose a search parameter.";
-            return;
-        }
-
+        var baseUrl = ServerUrlEntry.Text?.Trim();
+        var selectedParameter =
+            SearchParameterPicker.SelectedItem as string;
         var searchValue = SearchValueEntry.Text?.Trim();
 
-        if (string.IsNullOrWhiteSpace(searchValue))
+        if (string.IsNullOrWhiteSpace(baseUrl) ||
+            string.IsNullOrWhiteSpace(selectedResourceType) ||
+            string.IsNullOrWhiteSpace(selectedParameter) ||
+            string.IsNullOrWhiteSpace(searchValue))
         {
-            SearchStatusLabel.Text = "Enter a search value.";
-            return;
-        }
-
-        var baseUrl = ServerUrlEntry.Text?.Trim();
-
-        if (string.IsNullOrWhiteSpace(baseUrl))
-        {
-            SearchStatusLabel.Text = "Enter a FHIR server URL.";
+            SearchStatusLabel.Text =
+                "Choose a resource, search parameter, and value.";
             return;
         }
 
         try
         {
             SearchStatusLabel.Text = "Searching...";
+            ViewSearchsetJsonButton.IsEnabled = false;
 
+            lastSearchResponse =
+                await fhirService.SearchAsync(
+                    baseUrl,
+                    selectedResourceType,
+                    selectedParameter,
+                    searchValue);
 
+            var bundle = lastSearchResponse.Bundle;
 
-            var bundle =
-               await fhirService.SearchAsync(
-                   baseUrl,
-                   selectedResourceType,
-                   selectedParameter,
-                   searchValue);
-
-            ViewSearchsetJsonButton.IsEnabled = true;
             var results = bundle.Entry
-                .Select(entry => entry.Resource)
-                .OfType<FhirResource>()
-                .Where(resource => !string.IsNullOrWhiteSpace(resource.Id))
-                .Select(resource =>
-                    new SearchResultItem
-                    {
-                        ResourceType = resource.GetType().Name,
-                        Id = resource.Id!
-                    })
+                .Where(entry => entry.Resource is not null)
+                .Select(entry => new SearchResultItem
+                {
+                    ResourceType = entry.Resource.GetType().Name,
+                    Id = entry.Resource.Id ?? string.Empty
+                })
                 .ToList();
 
             SearchResultCollectionView.ItemsSource = results;
-
             SearchStatusLabel.Text =
-                $"Returned {results.Count} entries. " +
-                $"Total matches: {bundle.Total?.ToString() ?? "unknown"}.";
+                $"Search complete. {results.Count} result(s) in this Bundle.";
+
+            ViewSearchsetJsonButton.IsEnabled = true;
         }
         catch (Exception ex)
         {
-            SearchStatusLabel.Text = "Search failed.";
-            SearchResultCollectionView.ItemsSource =
-                new List<string> { ex.Message };
+            lastSearchResponse = null;
+            SearchResultCollectionView.ItemsSource = null;
+            ViewSearchsetJsonButton.IsEnabled = false;
+            SearchStatusLabel.Text = $"Search failed: {ex.Message}";
         }
     }
 
@@ -196,54 +200,47 @@ public partial class MainPage : ContentPage
         var baseUrl = ServerUrlEntry.Text?.Trim();
 
         if (string.IsNullOrWhiteSpace(baseUrl))
-        {
-            ResourceDetailLabel.Text = "FHIR server URL is missing.";
             return;
-        }
 
-        try
-        {
-            ResourceDetailLabel.Text =
-                $"Reading {selectedResult.DisplayText}...";
+        await resourceDetailPage.LoadResourceAsync(
+            baseUrl,
+            selectedResult.ResourceType,
+            selectedResult.Id);
 
-            var resource =
-               await fhirService.ReadAsync(
-                   baseUrl,
-                   selectedResult.ResourceType,
-                   selectedResult.Id);
+        await Shell.Current.Navigation.PushAsync(
+            resourceDetailPage);
 
-            ResourceDetailLabel.Text =
-                $"{resource.GetType().Name}/{resource.Id}";
+        SearchResultCollectionView.SelectedItem = null;
+    }
 
-            if (resource is Patient patient)
-            {
-                var name = patient.Name.FirstOrDefault();
+    private async void OnViewSearchsetJsonClicked(
+        object? sender,
+        EventArgs e)
+    {
+        if (lastSearchResponse is null)
+            return;
 
-                var givenNames =
-                    name is null
-                        ? string.Empty
-                        : string.Join(" ", name.Given);
+        searchsetJsonPage.LoadResponse(
+            lastSearchResponse);
 
-                var familyName = name?.Family ?? string.Empty;
-                var fullName = $"{givenNames} {familyName}".Trim();
+        await Shell.Current.Navigation.PushAsync(
+            searchsetJsonPage);
+    }
 
-                ResourceDetailEditor.Text =
-                    $"ID: {patient.Id}\n" +
-                    $"Name: {(string.IsNullOrWhiteSpace(fullName) ? "unknown" : fullName)}\n" +
-                    $"Birth date: {patient.BirthDate ?? "unknown"}\n" +
-                    $"Active: {patient.Active?.ToString() ?? "unknown"}";
-            }
-            else
-            {
-                ResourceDetailEditor.Text =
-                    $"FHIR resource type: {resource.GetType().Name}\n" +
-                    $"ID: {resource.Id}";
-            }
-        }
-        catch (Exception ex)
-        {
-            ResourceDetailLabel.Text = "Read failed.";
-            ResourceDetailEditor.Text = ex.Message;
-        }
+    private void ResetSearchState()
+    {
+        lastSearchResponse = null;
+        SearchValueEntry.Text = string.Empty;
+        SearchResultCollectionView.ItemsSource = null;
+        ViewSearchsetJsonButton.IsEnabled = false;
+    }
+
+    private sealed class SearchResultItem
+    {
+        public string ResourceType { get; init; } = string.Empty;
+
+        public string Id { get; init; } = string.Empty;
+
+        public string DisplayText => $"{ResourceType}/{Id}";
     }
 }

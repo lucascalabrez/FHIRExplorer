@@ -1,28 +1,48 @@
-# FHIRExplorer snapshot
+# FHIRExplorer — full snapshot
 
-This is the clean shared-code snapshot at the current milestone.
+Snapshot date: 2026-09-10.
 
-Implemented:
-- Read a FHIR R4 CapabilityStatement from `[base]/metadata`.
-- Deserialize with the Firely .NET SDK.
-- List advertised FHIR resource types.
-- Inspect resource interactions and search parameters.
-- Perform a single-parameter FHIR search and deserialize the returned Bundle.
-- Select a search result and perform the FHIR `read` interaction.
-- Display a small Patient summary for Patient resources.
+This archive captures the current learning-project milestone as reconstructed from the live working state discussed in ChatGPT.
 
-## Firely dependency
+## Current features
 
-`Hl7.Fhir.R4` version `6.4.0`.
+- .NET MAUI multi-target project for Android, iOS, Mac Catalyst, and Windows.
+- Dependency injection throughout the app.
+- `IFhirService` abstraction mapped to `FhirService` as a singleton.
+- Read a FHIR R4 `CapabilityStatement` from `[base]/metadata`.
+- List advertised resource types, interactions, and search parameters.
+- Execute a single-parameter FHIR search against HAPI FHIR R4.
+- Preserve both representations of a search response:
+  - parsed Firely `Bundle`
+  - raw server JSON
+- Preserve the exact request URL used for the search.
+- Select a search result and perform a FHIR `read` interaction.
+- Open a `ResourceDetailPage`; Patient resources receive a small semantic summary.
+- Open a `SearchsetJsonPage` showing pretty-printed JSON for the complete searchset Bundle.
+- Copy the search request URL to the platform clipboard.
 
-This snapshot uses the current SDK 6 API:
-- `FhirJsonDeserializer.DEFAULT.Deserialize<T>(json)`
-- `FhirJsonDeserializer.DEFAULT.DeserializeResource(json)`
+## Key dependencies
 
-## Important
+- .NET 10 MAUI
+- `Microsoft.Maui.Controls` via `$(MauiVersion)`
+- Firely SDK: `Hl7.Fhir.R4` 6.4.0
 
-The shared files in this archive are ready to replace the corresponding files in the existing Visual Studio MAUI project.
+## Architecture at this milestone
 
-Keep the template-generated `Platforms` and `Resources` files already present in the existing project. An Android manifest snippet is included because Android needs the INTERNET permission for HAPI access.
+```text
+App
+  -> AppShell
+       -> MainPage
+            -> IFhirService -> FhirService
+            -> ResourceDetailPage -> IFhirService
+            -> SearchsetJsonPage
+```
 
-The next planned refactoring is to extract HTTP/FHIR work from `MainPage` into a dedicated `FhirService`.
+`FhirService` owns HTTP/FHIR transport and deserialization. UI pages own presentation and navigation.
+
+## Notes
+
+- Android manifest includes `INTERNET` and `ACCESS_NETWORK_STATE`.
+- The code avoids the `Task` naming collision between `System.Threading.Tasks.Task` and the FHIR `Task` resource by importing only the specific FHIR model types needed in files that use asynchronous `Task`.
+- The project intentionally still uses code-behind. MVVM has not yet been introduced because the current teaching path is keeping abstractions earned and visible.
+- No generated build outputs (`bin/`, `obj/`) are included.

@@ -1,17 +1,16 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Package
   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
   xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
-  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
-  IgnorableNamespaces="uap rescap">
+  IgnorableNamespaces="uap mp">
 
-  <Identity Name="maui-package-name-placeholder" Publisher="CN=User Name" Version="0.0.0.0" />
+  <Identity Name="FHIRExplorer" Publisher="CN=User Name" Version="1.0.0.0" />
 
-  <mp:PhoneIdentity PhoneProductId="2A62B597-239D-4507-9174-1CC30DFDE1E9" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
+  <mp:PhoneIdentity PhoneProductId="00000000-0000-0000-0000-000000000000" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
-    <DisplayName>$placeholder$</DisplayName>
+    <DisplayName>FHIRExplorer</DisplayName>
     <PublisherDisplayName>User Name</PublisherDisplayName>
     <Logo>$placeholder$.png</Logo>
   </Properties>
@@ -28,8 +27,8 @@
   <Applications>
     <Application Id="App" Executable="$targetnametoken$.exe" EntryPoint="$targetentrypoint$">
       <uap:VisualElements
-        DisplayName="$placeholder$"
-        Description="$placeholder$"
+        DisplayName="FHIRExplorer"
+        Description="FHIRExplorer"
         Square150x150Logo="$placeholder$.png"
         Square44x44Logo="$placeholder$.png"
         BackgroundColor="transparent">
@@ -40,7 +39,6 @@
   </Applications>
 
   <Capabilities>
-    <rescap:Capability Name="runFullTrust" />
+    <Capability Name="internetClient" />
   </Capabilities>
-
 </Package>

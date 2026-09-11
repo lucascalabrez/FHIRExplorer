@@ -7,12 +7,10 @@ public partial class App : Application
     public App(AppShell appShell)
     {
         InitializeComponent();
-
         this.appShell = appShell;
     }
 
-    protected override Window CreateWindow(
-        IActivationState? activationState)
+    protected override Window CreateWindow(IActivationState? activationState)
     {
         return new Window(appShell);
     }

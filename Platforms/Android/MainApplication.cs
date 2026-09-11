@@ -1,20 +1,16 @@
-﻿using Android.App;
+using Android.App;
 using Android.Runtime;
 
-namespace FHIRExplorer.Platforms.Android;
+namespace FHIRExplorer;
 
 [Application]
 public class MainApplication : MauiApplication
 {
-    public MainApplication(
-        IntPtr handle,
-        JniHandleOwnership ownership)
+    public MainApplication(IntPtr handle, JniHandleOwnership ownership)
         : base(handle, ownership)
     {
     }
 
     protected override MauiApp CreateMauiApp()
-    {
-        return MauiProgram.CreateMauiApp();
-    }
-} 
+        => MauiProgram.CreateMauiApp();
+}

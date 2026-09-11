@@ -1,131 +1,120 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage
+    x:Class="FHIRExplorer.MainPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    x:Class="FHIRExplorer.MainPage"
     Title="FHIR Explorer">
 
-    <ScrollView>
-        <VerticalStackLayout Spacing="20" Padding="30">
+    <Grid
+        Padding="20"
+        RowDefinitions="Auto,*"
+        RowSpacing="12">
 
+        <VerticalStackLayout Spacing="8">
             <Label
                 Text="FHIR Explorer"
-                FontSize="32"
-                FontAttributes="Bold"
-                HorizontalOptions="Center" />
+                FontSize="28"
+                FontAttributes="Bold" />
+
+            <Label Text="FHIR R4 server base URL" />
 
             <Entry
                 x:Name="ServerUrlEntry"
                 Text="https://hapi.fhir.org/baseR4"
-                Placeholder="FHIR server base URL" />
+                Keyboard="Url" />
 
             <Button
-                Text="Read CapabilityStatement"
-                Clicked="OnReadCapabilityClicked" />
+                Text="Load CapabilityStatement"
+                Clicked="OnLoadCapabilityClicked" />
 
             <Label
-                x:Name="StatusLabel"
-                Text="Ready." />
-
-            <Label
-                Text="Supported FHIR resources"
-                FontSize="20"
-                FontAttributes="Bold" />
-
-            <CollectionView
-                x:Name="ResourceCollectionView"
-                HeightRequest="420"
-                SelectionMode="Single"
-                SelectionChanged="OnResourceSelected">
-                <CollectionView.ItemTemplate>
-                    <DataTemplate>
-                        <Grid Padding="10">
-                            <Label Text="{Binding .}" FontSize="18" />
-                        </Grid>
-                    </DataTemplate>
-                </CollectionView.ItemTemplate>
-            </CollectionView>
-
-            <Label
-                x:Name="SelectedResourceLabel"
-                Text="Select a resource."
-                FontSize="22"
-                FontAttributes="Bold" />
-
-            <Label
-                Text="Interactions"
-                FontSize="18"
-                FontAttributes="Bold" />
-
-            <CollectionView
-                x:Name="InteractionCollectionView"
-                HeightRequest="140">
-                <CollectionView.ItemTemplate>
-                    <DataTemplate>
-                        <Label Text="{Binding .}" Padding="10,4" />
-                    </DataTemplate>
-                </CollectionView.ItemTemplate>
-            </CollectionView>
-
-            <Label
-                Text="Search parameters"
-                FontSize="18"
-                FontAttributes="Bold" />
-
-            <CollectionView
-                x:Name="SearchParameterCollectionView"
-                HeightRequest="220">
-                <CollectionView.ItemTemplate>
-                    <DataTemplate>
-                        <Label Text="{Binding .}" Padding="10,4" />
-                    </DataTemplate>
-                </CollectionView.ItemTemplate>
-            </CollectionView>
-
-            <Label
-                Text="Try a search"
-                FontSize="20"
-                FontAttributes="Bold" />
-
-            <Picker
-                x:Name="SearchParameterPicker"
-                Title="Choose a search parameter" />
-
-            <Entry
-                x:Name="SearchValueEntry"
-                Placeholder="Enter a search value" />
-
-            <Button
-                Text="Search server"
-                Clicked="OnSearchClicked" />
-
-            <Label
-                x:Name="SearchStatusLabel"
-                Text="No search performed yet." />
-
-            <CollectionView
-                x:Name="SearchResultCollectionView"
-                HeightRequest="250"
-                SelectionMode="Single"
-                SelectionChanged="OnSearchResultSelected">
-                <CollectionView.ItemTemplate>
-                    <DataTemplate>
-                        <Label Text="{Binding DisplayText}" Padding="10,4" />
-                    </DataTemplate>
-                </CollectionView.ItemTemplate>
-            </CollectionView>
-
-            <Label
-                x:Name="ResourceDetailLabel"
-                Text="Select a search result to read it."
-                FontSize="20"
-                FontAttributes="Bold" />
-
-            <Editor
-                x:Name="ResourceDetailEditor"
-                HeightRequest="300"
-                IsReadOnly="True" />
-
+                x:Name="CapabilityStatusLabel"
+                Text="CapabilityStatement not loaded." />
         </VerticalStackLayout>
-    </ScrollView>
+
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Spacing="12">
+
+                <Label
+                    Text="Resources"
+                    FontSize="20"
+                    FontAttributes="Bold" />
+
+                <CollectionView
+                    x:Name="ResourceCollectionView"
+                    HeightRequest="180"
+                    SelectionMode="Single"
+                    SelectionChanged="OnResourceSelected">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Label
+                                Padding="8"
+                                Text="{Binding .}" />
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+
+                <Label
+                    x:Name="SelectedResourceLabel"
+                    Text="Selected resource: none"
+                    FontAttributes="Bold" />
+
+                <Label Text="Supported interactions" />
+
+                <Label
+                    x:Name="InteractionsLabel"
+                    Text="—" />
+
+                <Label Text="Search parameter" />
+
+                <Picker
+                    x:Name="SearchParameterPicker"
+                    Title="Select a search parameter" />
+
+                <Label Text="Search value" />
+
+                <Entry
+                    x:Name="SearchValueEntry"
+                    Placeholder="Enter only the parameter value" />
+
+                <Button
+                    x:Name="SearchButton"
+                    Text="Search"
+                    IsEnabled="False"
+                    Clicked="OnSearchClicked" />
+
+                <Label
+                    x:Name="SearchStatusLabel"
+                    Text="Select a resource and search parameter." />
+
+                <Button
+                    x:Name="ViewSearchsetJsonButton"
+                    Text="View searchset JSON"
+                    IsEnabled="False"
+                    Clicked="OnViewSearchsetJsonClicked" />
+
+                <Label
+                    Text="Search results"
+                    FontSize="20"
+                    FontAttributes="Bold" />
+
+                <CollectionView
+                    x:Name="SearchResultCollectionView"
+                    HeightRequest="300"
+                    SelectionMode="Single"
+                    SelectionChanged="OnSearchResultSelected">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Label
+                                Padding="8"
+                                Text="{Binding DisplayText}" />
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+    </Grid>
+
 </ContentPage>
